@@ -1,0 +1,22 @@
+{
+  "name": "@admetrics/worker",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsc -w"
+  },
+  "dependencies": {
+    "@admetrics/domain": "*",
+    "@admetrics/integrations": "*",
+    "@admetrics/diagnostics": "*",
+    "@admetrics/execution": "*",
+    "@admetrics/ai": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2"
+  }
+}
