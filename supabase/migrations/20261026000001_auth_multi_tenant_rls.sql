@@ -1,7 +1,7 @@
 -- ====================================================================
 -- AdMetrics & Growth AI — Migration 0001: Autenticação & Multi-Tenancy RLS
--- Versão 1.1 · Políticas RLS Completas, Funções com Search Path Seguro
--- e Criação Atômica de Organização (Anti-Escalação de Privilégios)
+-- Versão 1.2 · Políticas RLS Blindadas contra Escalonamento de Privilégios,
+-- Funções com Search Path Seguro, Validação de Identidade e Imutabilidade
 -- ====================================================================
 
 -- --------------------------------------------------------------------
@@ -120,7 +120,7 @@ begin
   values (trim(org_name), org_type)
   returning id into v_org_id;
 
-  -- 4. Inserir Membership como OWNER automaticamente
+  -- 4. Inserir Membership como OWNER automaticamente para o usuário autenticado
   insert into public.memberships (organization_id, user_id, role)
   values (v_org_id, v_user_id, 'owner');
 
@@ -143,7 +143,7 @@ revoke execute on function public.create_organization_with_owner(text, text) fro
 grant execute on function public.create_organization_with_owner(text, text) to authenticated;
 
 -- --------------------------------------------------------------------
--- 3. POLÍTICAS RLS COMPLETAS PARA TODAS AS TABELAS DO SISTEMA
+-- 3. POLÍTICAS RLS BLINDADAS PARA TODAS AS TABELAS DO SISTEMA
 -- --------------------------------------------------------------------
 
 -- MEMBERSHIPS
@@ -152,20 +152,49 @@ create policy "Membros podem visualizar membros de sua organização"
   on public.memberships for select
   using (user_id = auth.uid() or public.user_has_org_access(organization_id));
 
+-- Inserção de membros: Apenas owner e admin podem convidar, mas apenas owner pode convidar outro owner
 drop policy if exists "Apenas owners e admins podem gerenciar membros" on public.memberships;
 create policy "Apenas owners e admins podem gerenciar membros"
   on public.memberships for insert
-  with check (public.user_org_role(organization_id) in ('owner', 'admin'));
+  with check (
+    public.user_org_role(organization_id) in ('owner', 'admin')
+    and (
+      role <> 'owner'
+      or public.user_org_role(organization_id) = 'owner'
+    )
+  );
 
+-- Atualização de membros: impede que admin promova a si ou a outros para owner,
+-- e impede que não-owners alterem membros com papel owner.
 drop policy if exists "Apenas owners e admins podem atualizar membros" on public.memberships;
 create policy "Apenas owners e admins podem atualizar membros"
   on public.memberships for update
-  using (public.user_org_role(organization_id) in ('owner', 'admin'));
+  using (
+    -- Só pode atualizar se o executor for owner, OU for admin mexendo em papéis abaixo de owner
+    public.user_org_role(organization_id) = 'owner'
+    or (
+      public.user_org_role(organization_id) = 'admin'
+      and role <> 'owner'
+      and user_id <> auth.uid() -- Admin não pode alterar o próprio papel para se autopromover
+    )
+  )
+  with check (
+    -- O novo papel não pode ser 'owner' a menos que quem esteja alterando seja 'owner'
+    (role <> 'owner' or public.user_org_role(organization_id) = 'owner')
+  );
 
+-- Exclusão de membros: owner pode remover qualquer um; admin pode remover papéis inferiores
 drop policy if exists "Apenas owners e admins podem remover membros" on public.memberships;
 create policy "Apenas owners e admins podem remover membros"
   on public.memberships for delete
-  using (public.user_org_role(organization_id) in ('owner', 'admin'));
+  using (
+    public.user_org_role(organization_id) = 'owner'
+    or (
+      public.user_org_role(organization_id) = 'admin'
+      and role <> 'owner'
+    )
+    or user_id = auth.uid() -- O próprio usuário pode optar por sair da organização
+  );
 
 -- ORGANIZATIONS (Atualização permitida apenas para owner/admin)
 drop policy if exists "Owners e admins podem atualizar sua organizacao" on public.organizations;
@@ -175,18 +204,22 @@ create policy "Owners e admins podem atualizar sua organizacao"
 
 -- CLIENTS
 drop policy if exists "Membros podem gerenciar clientes de sua organização" on public.clients;
+drop policy if exists "Membros podem visualizar clientes de sua organização" on public.clients;
 create policy "Membros podem visualizar clientes de sua organização"
   on public.clients for select
   using (public.user_has_org_access(organization_id));
 
+drop policy if exists "Gestores podem criar clientes na sua organização" on public.clients;
 create policy "Gestores podem criar clientes na sua organização"
   on public.clients for insert
   with check (public.user_org_role(organization_id) in ('owner', 'admin', 'manager'));
 
+drop policy if exists "Gestores podem atualizar clientes de sua organização" on public.clients;
 create policy "Gestores podem atualizar clientes de sua organização"
   on public.clients for update
   using (public.user_org_role(organization_id) in ('owner', 'admin', 'manager'));
 
+drop policy if exists "Apenas owners e admins podem excluir clientes" on public.clients;
 create policy "Apenas owners e admins podem excluir clientes"
   on public.clients for delete
   using (public.user_org_role(organization_id) in ('owner', 'admin'));
@@ -197,6 +230,7 @@ create policy "Membros podem ver conexoes de clientes da sua org"
   on public.ad_connections for select
   using (public.user_has_org_access(organization_id));
 
+drop policy if exists "Gestores podem gerenciar conexoes" on public.ad_connections;
 create policy "Gestores podem gerenciar conexoes"
   on public.ad_connections for all
   using (public.user_org_role(organization_id) in ('owner', 'admin', 'manager'));
@@ -219,6 +253,7 @@ create policy "Membros podem ver campanhas de clientes acessiveis"
   on public.campaigns for select
   using (public.user_has_client_access(client_id));
 
+drop policy if exists "Gestores podem atualizar campanhas" on public.campaigns;
 create policy "Gestores podem atualizar campanhas"
   on public.campaigns for update
   using (
@@ -251,7 +286,9 @@ create policy "Membros autorizados podem atualizar propostas"
   on public.action_proposals for update
   using (public.user_has_org_access(organization_id));
 
--- APPROVALS (Apenas owner, admin e manager podem registrar aprovacao)
+-- APPROVALS
+-- Validação estrita: apenas gestores (owner, admin, manager) podem aprovar,
+-- o aprovador DEVE ser o auth.uid(), a proposta deve estar 'pending' e a versão aprovada deve bater com a proposta.
 drop policy if exists "Membros podem ver aprovacoes de sua org" on public.approvals;
 create policy "Membros podem ver aprovacoes de sua org"
   on public.approvals for select
@@ -271,11 +308,13 @@ create policy "Gestores podem criar aprovacoes"
     and exists (
       select 1 from public.action_proposals ap
       where ap.id = proposal_id
+        and ap.status = 'pending'
+        and ap.version = approved_version
         and public.user_org_role(ap.organization_id) in ('owner', 'admin', 'manager')
     )
   );
 
--- EXECUTION_LOGS
+-- EXECUTION_LOGS (Imutável por padrão)
 drop policy if exists "Membros podem ver execution logs de sua org" on public.execution_logs;
 create policy "Membros podem ver execution logs de sua org"
   on public.execution_logs for select
@@ -287,7 +326,7 @@ create policy "Membros podem ver execution logs de sua org"
     )
   );
 
--- AUDIT_LOGS
+-- AUDIT_LOGS (Imutável: apenas INSERT e SELECT, sem permissões de UPDATE ou DELETE)
 drop policy if exists "Membros podem ver audit logs de sua org" on public.audit_logs;
 create policy "Membros podem ver audit logs de sua org"
   on public.audit_logs for select
