@@ -9,11 +9,13 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@admetrics/domain": "*",
-    "@admetrics/diagnostics": "*",
-    "@admetrics/integrations": "*",
-    "@admetrics/execution": "*",
     "@admetrics/ai": "*",
+    "@admetrics/diagnostics": "*",
+    "@admetrics/domain": "*",
+    "@admetrics/execution": "*",
+    "@admetrics/integrations": "*",
+    "@supabase/ssr": "^0.12.7",
+    "@supabase/supabase-js": "^2.118.0",
     "lucide-react": "^0.468.0",
     "next": "^15.1.0",
     "react": "^19.0.0",

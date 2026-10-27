@@ -3,6 +3,8 @@ import {
   Approval,
   Client,
   ExecutionLog,
+  MembershipRole,
+  assertCanApproveActionProposal,
   validateProposalPolicy
 } from "@admetrics/domain";
 import { AdsConnector } from "@admetrics/integrations";
@@ -20,16 +22,22 @@ export interface ExecutionOrchestrationResult {
  */
 export class ActionExecutionOrchestrator {
   /**
-   * Processa uma decisão humana (Aprovação ou Rejeição)
+   * Processa uma decisão humana (Aprovação ou Rejeição) com validação de papel
    */
   public applyApprovalDecision(
     proposal: ActionProposal,
     userId: string,
     decision: "approved" | "rejected",
-    note?: string
+    note?: string,
+    actorRole?: MembershipRole
   ): { proposal: ActionProposal; approval: Approval } {
     if (proposal.status !== "pending") {
       throw new Error(`Não é possível aprovar proposta com status atual '${proposal.status}'.`);
+    }
+
+    // Validação estrita de autorização do papel para aprovação
+    if (actorRole && decision === "approved") {
+      assertCanApproveActionProposal(actorRole);
     }
 
     const approval: Approval = {

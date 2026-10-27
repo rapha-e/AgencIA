@@ -19,8 +19,9 @@
         "name": "next"
       }
     ],
+    "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"],
+      "@/*": ["src/*"],
       "@admetrics/domain": ["../../packages/domain/dist/index.d.ts"],
       "@admetrics/integrations": ["../../packages/integrations/dist/index.d.ts"],
       "@admetrics/diagnostics": ["../../packages/diagnostics/dist/index.d.ts"],

@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import Link from "next/link";
 import {
-  TrendingUp,
   AlertTriangle,
   CheckCircle,
   XCircle,
@@ -13,8 +13,14 @@ import {
   Layers,
   BarChart3,
   RefreshCw,
-  Info
+  Info,
+  LogOut,
+  User,
+  Building,
+  Lock
 } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
+import { canApproveActionProposal, MembershipRole } from "@admetrics/domain";
 
 interface ActionProposalItem {
   id: string;
@@ -32,11 +38,59 @@ interface ActionProposalItem {
   version: number;
 }
 
+interface UserOrg {
+  id: string;
+  name: string;
+  role: MembershipRole;
+}
+
 export default function DashboardPage() {
   const [selectedChannel, setSelectedChannel] = useState<"all" | "meta" | "google">("all");
   const [isSyncing, setIsSyncing] = useState(false);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<MembershipRole>("owner");
+  const [userOrgs, setUserOrgs] = useState<UserOrg[]>([
+    { id: "a0000000-0000-0000-0000-000000000001", name: "Growth Rocket Agency", role: "owner" }
+  ]);
+  const [selectedOrgId, setSelectedOrgId] = useState<string>("a0000000-0000-0000-0000-000000000001");
+  const [permissionNotice, setPermissionNotice] = useState<string | null>(null);
 
-  // Estado interativo das propostas da Central de Aprovação
+  // Inicializa sessão do Supabase no cliente
+  useEffect(() => {
+    async function checkAuth() {
+      try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+
+        if (user) {
+          setUserEmail(user.email ?? null);
+
+          // Buscar memberships autorizadas diretamente do banco (com RLS)
+          const { data: memberships } = await supabase
+            .from("memberships")
+            .select("role, organization_id, organizations(id, name)")
+            .eq("user_id", user.id);
+
+          if (memberships && memberships.length > 0) {
+            const orgs: UserOrg[] = memberships.map((m: any) => ({
+              id: m.organization_id,
+              name: m.organizations?.name || "Minha Organização",
+              role: m.role as MembershipRole,
+            }));
+            setUserOrgs(orgs);
+            setSelectedOrgId(orgs[0].id);
+            setUserRole(orgs[0].role);
+          }
+        }
+      } catch (err) {
+        // Fallback gracioso para visualização local
+      }
+    }
+
+    checkAuth();
+  }, []);
+
+  // Propostas de Ação da Central de Aprovação
   const [proposals, setProposals] = useState<ActionProposalItem[]>([
     {
       id: "f0000000-0000-0000-0000-000000000001",
@@ -57,12 +111,23 @@ export default function DashboardPage() {
   ]);
 
   const handleApprove = (id: string) => {
+    setPermissionNotice(null);
+
+    // Validação estrita de autorização RBAC
+    if (!canApproveActionProposal(userRole)) {
+      setPermissionNotice(
+        `Seu papel atual ('${userRole}') não possui permissão para aprovar alterações orçamentárias. Apenas 'owner', 'admin' ou 'manager' podem autorizar execuções.`
+      );
+      return;
+    }
+
     setProposals((prev) =>
       prev.map((p) => (p.id === id ? { ...p, status: "succeeded" } : p))
     );
   };
 
   const handleReject = (id: string) => {
+    setPermissionNotice(null);
     setProposals((prev) =>
       prev.map((p) => (p.id === id ? { ...p, status: "rejected" } : p))
     );
@@ -74,6 +139,8 @@ export default function DashboardPage() {
       setIsSyncing(false);
     }, 1200);
   };
+
+  const activeOrg = userOrgs.find((o) => o.id === selectedOrgId) || userOrgs[0];
 
   return (
     <div className="min-h-screen bg-[#090d16] text-slate-100 p-6 md:p-8 font-sans">
@@ -88,7 +155,7 @@ export default function DashboardPage() {
               <h1 className="text-xl md:text-2xl font-bold tracking-tight text-white flex items-center gap-2">
                 AdMetrics & Growth AI
                 <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                  v1.0 MVP
+                  v1.0 Multi-Tenant
                 </span>
               </h1>
               <p className="text-xs md:text-sm text-slate-400">
@@ -98,8 +165,34 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Client & Organization Context */}
+        {/* Client & Organization & Auth Context */}
         <div className="flex flex-wrap items-center gap-3">
+          {/* Organization Selector */}
+          <div className="bg-slate-900/90 border border-slate-800 rounded-lg px-3.5 py-1.5 text-xs">
+            <div className="flex items-center gap-1.5 text-slate-500 text-[10px] uppercase font-bold tracking-wider mb-0.5">
+              <Building className="w-3 h-3 text-blue-400" />
+              Organização
+            </div>
+            <select
+              value={selectedOrgId}
+              onChange={(e) => {
+                const org = userOrgs.find((o) => o.id === e.target.value);
+                if (org) {
+                  setSelectedOrgId(org.id);
+                  setUserRole(org.role);
+                }
+              }}
+              className="bg-transparent text-slate-200 font-semibold focus:outline-none cursor-pointer"
+            >
+              {userOrgs.map((org) => (
+                <option key={org.id} value={org.id} className="bg-slate-900 text-slate-200">
+                  {org.name} ({org.role.toUpperCase()})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Client Selector */}
           <div className="bg-slate-900/90 border border-slate-800 rounded-lg px-3.5 py-2 text-xs">
             <span className="text-slate-500 block text-[10px] uppercase font-bold tracking-wider">
               Cliente Selecionado
@@ -108,6 +201,7 @@ export default function DashboardPage() {
             <span className="text-slate-500 ml-1.5">(BRL · SP)</span>
           </div>
 
+          {/* Sync Button */}
           <button
             onClick={handleSync}
             disabled={isSyncing}
@@ -116,17 +210,57 @@ export default function DashboardPage() {
             <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? "animate-spin text-blue-400" : ""}`} />
             {isSyncing ? "Sincronizando..." : "Sincronizar APIs"}
           </button>
+
+          {/* User Profile & Logout */}
+          {userEmail ? (
+            <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 pl-3 pr-1.5 py-1 rounded-lg text-xs">
+              <User className="w-3.5 h-3.5 text-slate-400" />
+              <span className="text-slate-300 font-medium">{userEmail}</span>
+              <a
+                href="/auth/signout"
+                title="Sair da Conta"
+                className="p-1 hover:bg-slate-800 rounded text-slate-400 hover:text-rose-400 transition-colors"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+              </a>
+            </div>
+          ) : (
+            <Link
+              href="/login"
+              className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white px-3.5 py-2 rounded-lg text-xs font-semibold transition-all shadow-sm"
+            >
+              <User className="w-3.5 h-3.5" />
+              Entrar / Login
+            </Link>
+          )}
         </div>
       </header>
 
       {/* Main Container */}
       <main className="max-w-7xl mx-auto mt-6 space-y-8">
+        {/* Permission Alert Banner (se houver tentativa não autorizada) */}
+        {permissionNotice && (
+          <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-4 flex items-center justify-between text-xs text-rose-300 gap-3">
+            <div className="flex items-center gap-2.5">
+              <Lock className="w-4 h-4 text-rose-400 shrink-0" />
+              <span>{permissionNotice}</span>
+            </div>
+            <button
+              onClick={() => setPermissionNotice(null)}
+              className="text-slate-400 hover:text-white"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
         {/* Attribution & Notice banner */}
         <div className="bg-slate-900/60 border border-slate-800/80 rounded-xl p-3.5 flex flex-col md:flex-row md:items-center justify-between text-xs text-slate-400 gap-3">
           <div className="flex items-center gap-2">
             <Info className="w-4 h-4 text-blue-400 shrink-0" />
             <span>
-              <strong>Origem dos Dados:</strong> Meta Marketing API & Google Ads (Sincronização Oficial). Janela de Atribuição:{" "}
+              <strong>Organização Ativa:</strong> {activeOrg.name} (Papel:{" "}
+              <code className="text-slate-200 font-bold uppercase">{userRole}</code>). Janela de Atribuição:{" "}
               <code className="text-slate-300 bg-slate-800/80 px-1 py-0.5 rounded">7d clique / 1d visualização</code>.
             </span>
           </div>
@@ -282,7 +416,7 @@ export default function DashboardPage() {
                     </div>
                   </div>
 
-                  {/* Botões de Ação com Feedback */}
+                  {/* Botões de Ação com Feedback e Verificação de Permissão */}
                   <div className="flex items-center gap-2.5 shrink-0 self-end md:self-center">
                     {proposal.status === "pending" ? (
                       <>
