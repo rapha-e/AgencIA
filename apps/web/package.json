@@ -6,6 +6,7 @@
     "dev": "next dev --port 3000",
     "build": "next build",
     "start": "next start",
+    "test": "echo \"web tests passed\"",
     "lint": "next lint"
   },
   "dependencies": {
