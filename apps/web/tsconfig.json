@@ -22,11 +22,11 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"],
-      "@admetrics/domain": ["../../packages/domain/dist/index.js"],
-      "@admetrics/integrations": ["../../packages/integrations/dist/index.js"],
-      "@admetrics/diagnostics": ["../../packages/diagnostics/dist/index.js"],
-      "@admetrics/ai": ["../../packages/ai/dist/index.js"],
-      "@admetrics/execution": ["../../packages/execution/dist/index.js"]
+      "@admetrics/domain": ["../../packages/domain/dist/index"],
+      "@admetrics/integrations": ["../../packages/integrations/dist/index"],
+      "@admetrics/diagnostics": ["../../packages/diagnostics/dist/index"],
+      "@admetrics/ai": ["../../packages/ai/dist/index"],
+      "@admetrics/execution": ["../../packages/execution/dist/index"]
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],

@@ -7,7 +7,7 @@ node_modules/
 .next/
 out/
 build/
-dist/
+apps/*/dist/
 
 # Environment Variables
 .env

@@ -23,11 +23,11 @@
     "sourceMap": true,
     "baseUrl": ".",
     "paths": {
-      "@admetrics/domain": ["packages/domain/dist/index.d.ts"],
-      "@admetrics/integrations": ["packages/integrations/dist/index.d.ts"],
-      "@admetrics/diagnostics": ["packages/diagnostics/dist/index.d.ts"],
-      "@admetrics/ai": ["packages/ai/dist/index.d.ts"],
-      "@admetrics/execution": ["packages/execution/dist/index.d.ts"]
+      "@admetrics/domain": ["packages/domain/dist/index"],
+      "@admetrics/integrations": ["packages/integrations/dist/index"],
+      "@admetrics/diagnostics": ["packages/diagnostics/dist/index"],
+      "@admetrics/ai": ["packages/ai/dist/index"],
+      "@admetrics/execution": ["packages/execution/dist/index"]
     }
   }
 }

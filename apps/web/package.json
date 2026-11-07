@@ -4,7 +4,6 @@
   "private": true,
   "scripts": {
     "dev": "next dev --port 3000",
-    "prebuild": "npm --prefix ../.. run build:packages",
     "build": "next build",
     "start": "next start",
     "test": "echo \"web tests passed\"",
