@@ -4,8 +4,12 @@
   "private": true,
   "description": "Plataforma SaaS multiempresa de Growth Marketing com IA e governança de tráfego pago",
   "workspaces": [
-    "apps/*",
-    "packages/*"
+    "packages/domain",
+    "packages/integrations",
+    "packages/diagnostics",
+    "packages/ai",
+    "packages/execution",
+    "apps/*"
   ],
   "scripts": {
     "dev": "npm run dev --workspace=apps/web",
@@ -13,6 +17,7 @@
     "build": "npm run build --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "test:integration": "node tests/supabase_remote_integration.mjs",
+    "keep-alive": "node tests/supabase_keep_alive.mjs",
     "lint": "npm run lint --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present"
   },

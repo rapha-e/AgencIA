@@ -14,7 +14,8 @@
     "@admetrics/integrations": "*",
     "@admetrics/diagnostics": "*",
     "@admetrics/execution": "*",
-    "@admetrics/ai": "*"
+    "@admetrics/ai": "*",
+    "@supabase/supabase-js": "^2.118.0"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

@@ -1,0 +1,43 @@
+name: Supabase Daily Keep-Alive
+
+on:
+  schedule:
+    # Executa automaticamente todos os dias às 09:00 UTC (06:00 horário de Brasília)
+    - cron: "0 9 * * *"
+  workflow_dispatch: # Permite disparo manual pela aba Actions do GitHub
+
+jobs:
+  ping-supabase:
+    name: Ping Supabase REST & Auth APIs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase PostgREST & GoTrue
+        env:
+          SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_KEY" ]; then
+            echo "::warning::Secrets NEXT_PUBLIC_SUPABASE_URL ou NEXT_PUBLIC_SUPABASE_ANON_KEY não configurados no GitHub."
+            exit 0
+          fi
+
+          echo "Enviando ping diário para o PostgREST do Supabase..."
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "apikey: $SUPABASE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_KEY" \
+            "$SUPABASE_URL/rest/v1/organizations?select=id&limit=1")
+
+          echo "Status PostgREST: $HTTP_STATUS"
+          if [ "$HTTP_STATUS" -ge 400 ]; then
+            echo "::error::Falha no ping ao PostgREST (HTTP $HTTP_STATUS)"
+            exit 1
+          fi
+
+          echo "Enviando ping para o GoTrue Auth do Supabase..."
+          AUTH_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "apikey: $SUPABASE_KEY" \
+            "$SUPABASE_URL/auth/v1/settings")
+
+          echo "Status Auth: $AUTH_STATUS"
+          echo "Keep-Alive concluído com sucesso! O projeto permanecerá ativo."
+

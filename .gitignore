@@ -31,7 +31,10 @@ Thumbs.db
 .turbo/
 .cache/
 
-# IDE
+# IDE & Temporary Artifacts
 .vscode/
 .idea/
 *.swp
+*.tsbuildinfo
+*.zip
+scratch/

@@ -1,8 +1,11 @@
-import { MockAdsConnector } from "@admetrics/integrations";
+import { MockAdsConnector, syncGoogleConnections } from "@admetrics/integrations";
 import { runHeuristicDiagnostics } from "@admetrics/diagnostics";
 import { ActionExecutionOrchestrator } from "@admetrics/execution";
-import { DeterministicFallbackAiProvider } from "@admetrics/ai";
+import { createAiProvider } from "@admetrics/ai";
 import { ActionProposal, Client } from "@admetrics/domain";
+export { syncMetaConnections } from "./sync-meta.js";
+export { syncGoogleConnections };
+export { pingSupabaseKeepAlive, startDailyKeepAliveScheduler } from "./keep-alive.js";
 
 async function main() {
   console.log("=================================================");
@@ -11,7 +14,7 @@ async function main() {
 
   const connector = new MockAdsConnector("meta");
   const orchestrator = new ActionExecutionOrchestrator();
-  const aiProvider = new DeterministicFallbackAiProvider();
+  const aiProvider = createAiProvider();
 
   const clientId = "c0000000-0000-0000-0000-000000000001";
   const orgId = "a0000000-0000-0000-0000-000000000001";

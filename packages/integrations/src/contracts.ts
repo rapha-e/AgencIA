@@ -14,6 +14,7 @@ export interface SyncResult<T> {
   data: T[];
   syncedAt: string;
   error?: string;
+  isTruncated?: boolean;
 }
 
 export interface ActionExecutionResult {
