@@ -4,6 +4,10 @@ on:
   schedule:
     # Executa automaticamente todos os dias às 09:00 UTC (06:00 horário de Brasília)
     - cron: "0 9 * * *"
+  push:
+    branches:
+      - master
+      - main
   workflow_dispatch: # Permite disparo manual pela aba Actions do GitHub
 
 jobs:
@@ -40,4 +44,3 @@ jobs:
 
           echo "Status Auth: $AUTH_STATUS"
           echo "Keep-Alive concluído com sucesso! O projeto permanecerá ativo."
-
