@@ -15,7 +15,7 @@
     "dev": "npm run dev --workspace=apps/web",
     "dev:worker": "npm run dev --workspace=apps/worker",
     "build:packages": "npm run build --workspace=@admetrics/domain && npm run build --workspace=@admetrics/integrations && npm run build --workspace=@admetrics/diagnostics && npm run build --workspace=@admetrics/ai && npm run build --workspace=@admetrics/execution",
-    "build": "npm run build:packages && npm run build --workspace=@admetrics/web && npm run build --workspace=@admetrics/worker",
+    "build": "npm run build --workspace=@admetrics/web && npm run build --workspace=@admetrics/worker",
     "test": "npm run test --workspaces --if-present",
     "test:integration": "node tests/supabase_remote_integration.mjs",
     "test:cloud": "node tests/verify_cloud_integrations.mjs",
